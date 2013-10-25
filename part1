@@ -1,0 +1,57 @@
+#include <emmintrin.h>
+#define KERNX 3 //this is the x-size of the kernel. It will always be odd.
+#define KERNY 3 //this is the y-size of the kernel. It will always be odd.
+int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
+                    float* kernel)
+{
+    // the x coordinate of the kernel's center
+    int kern_cent_X = (KERNX - 1)/2;
+    // the y coordinate of the kernel's center
+    int kern_cent_Y = (KERNY - 1)/2;
+
+
+    __m128d kern1 =  _mm_loadu_pd(kernel + 0); /* kernel[0], kernel[1], kernel[2], kernel[3] */
+	__m128d kern2 = _mm_loadu_pd(kernel + 3); /* kernel[3], kernel[4], kernel[5], kernel[6] */
+	__m128d kern3 =  _mm_loadu_pd(kernel + 4); /* kernel[6], kernel[7], kernel[8] */
+
+    // main convolution loop
+	for(int x = 0; x < data_size_X; x += 3){ // the x coordinate of the output location we're focusing on
+		for(int y = 0; y < data_size_Y; y += 3){ // the y coordinate of the output location we're focusing on
+			if (x < data_size_X && y < data_size_Y) {
+
+				// submatrix columns
+				__m128d submatrix1 = _mm_loadu_pd(in + y - 1 + x*data_size_X);
+				__m128d submatrix2 = _mm_loadu_pd(in + y - 1 + (x + 1)*data_size_X);
+				__m128d submatrix3 = _mm_loadu_pd(in + y - 1 + (x + 2)*data_size_X);
+
+				/* multiply and add. store results in order in array p */	
+				double *p;
+				// first column of sub-out
+				_mm_storeu_pd(p, _mm_mul_pd(submatrix1, kern1)); 
+				_mm_storeu_pd((p + 3), _mm_mul_pd(submatrix1, kern2));
+				_mm_storeu_pd((p + 6), _mm_mul_pd(submatrix1, kern3));
+				//second column of sub-out
+				_mm_storeu_pd((p + 9), _mm_mul_pd(submatrix2, kern1)); 
+				_mm_storeu_pd((p + 12), _mm_mul_pd(submatrix2, kern2));
+				_mm_storeu_pd((p + 15), _mm_mul_pd(submatrix2, kern3));
+				//third
+				_mm_storeu_pd((p + 18), _mm_mul_pd(submatrix3, kern1)); 
+				_mm_storeu_pd((p + 21), _mm_mul_pd(submatrix3, kern2));
+				_mm_storeu_pd((p + 24), _mm_mul_pd(submatrix3, kern3));
+
+				// fill in out submatrix
+				*(out + x*data_size_X + y) = p[0] + p[1] + p[2];
+				*(out + x*data_size_X + y + 1) = p[3] + p[4] + p[5];
+				*(out + x*data_size_X + y + 2) = p[6] + p[7] + p[8];
+				*(out + (x + 1)*data_size_X + y) = p[9] + p[10] + p[11];
+				*(out + (x + 1)*data_size_X + y + 1) = p[12] + p[13] + p[14];
+				*(out + (x + 1)*data_size_X + y + 2) = p[15] + p[16] + p[17];
+				*(out + (x + 2)*data_size_X + y) = p[18] + p[19] + p[20];
+				*(out + (x + 2)*data_size_X + y + 1) = p[21] + p[22] + p[23];
+				*(out + (x + 2)*data_size_X + y + 2) = p[24] + p[25] + p[26];
+				//out[x + y*data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j)*KERNX] * in[(x + i) + (y + j)*data_size_X];
+			}
+		}
+	}
+	return 1;
+}
