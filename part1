@@ -56,31 +56,28 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	return 1;
 }
 
-// rough draft
-// Padding the matrix: if 4x4, then pad it so that it becomes 6x6 (adding 2 more on each side)
+// Padding
+//Padding the matrix: if 4x4, then pad it so that it becomes 6x6 (adding 2 more on each side)
+int padded_x = data_size_X + 2 + (8-data_size_X%4); //adding 2 on each side, do we need *kern_cent_X and Y?
+int padded_y = data_size_Y + 2;
+int padded_size = padded_x * padded_y;
 
-//create the padded matrix size
-int padded_x = data_size_X + 2 * kern_cent_X; //adding 2 on each side, do we need to *kern_cent_X?
-int padded_y = data_size_Y + 2 * kern_cent_Y;
-int padded_size = padded_x * padded_y; //padded matrix
+//start padding with buffer=padded_in
+    float padded_in[padded_size];
+    memset(padded_in, 0.0, padded_size * sizeof(float));
 
-//alternate padding could also use buffers?
-int k
-float padded[padded_size];
-__m128 zero_p = _mm_setzero_ps(); //set zero vector (128 bits)
-for (k = 0; k < kern_cent_Y * padded_x + kern_cent_X; k += 16) { //4x4 pads the first KERNX row and first KERNY column
-    zero_p = *(__m128)(padded + k + 0);
-    zero_p = *(__m128)(padded + k + 4);
-    zero_p = *(__m128)(padded + k + 8);
-    zero_p = *(__m128)(padded + k + 12);
-    zero_p = *(__m128)(padded + k + 16);
+    int k;
+    int l;
     
-}
+for (k = 1; k <= data_size_Y; j++) {
+    for (l = 1; l <= data_size_X; i++) {
+        padded_in[l+k*(padded_x)] = padded_in[(l-1)+(l-1) * data_size_X]; //update the elements
+    }
+    
 
-
-//flip the kernel 
+//flip the kernel probably wrong
 float kern[KERNX * KERNY];
-for (int j = 0; j < KERNX * KERNY; j++) {
-    kern[j] = kernel[(KERNX * KERNY)-1-j]; //kern is flipped version of kernel (like the inverse)
-    
+for (int i = 0; i < KERNX * KERNY; i++) {
+    kern[i] = kernel[(KERNX * KERNY)-1-i]; //kern is flipped version of kernel (like the inverse)
+
 
