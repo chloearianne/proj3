@@ -1,54 +1,55 @@
 #include <emmintrin.h>
-#define KERNX 3 //this is the x-size of the kernel. It will always be odd.
-#define KERNY 3 //this is the y-size of the kernel. It will always be odd.
-int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
-                    float* kernel)
-	{
-    // the x coordinate of the kernel's center
-    int kern_cent_X = (KERNX - 1)/2;
-    // the y coordinate of the kernel's center
-    int kern_cent_Y = (KERNY - 1)/2;
-    
-     // Pad the matrix with 0's all around
+ #define KERNX 3 //this is the x-size of the kernel. It will always be odd.
+ #define KERNY 3 //this is the y-size of the kernel. It will always be odd.
+ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
+                     float* kernel)
+ {
+     // the x coordinate of the kernel's center
+     int kern_cent_X = (KERNX - 1)/2;
+     // the y coordinate of the kernel's center
+     int kern_cent_Y = (KERNY - 1)/2;
+ 
      int padding_size_X = data_size_X + 2;
      int padding_size_Y = data_size_Y + 2;
-     float pad_matrix[ padding_size_X * padding_size_Y];
+     float in_pad_matrix[padding_size_X * padding_size_Y];
      // make all values of padded matrix 0
-     memset(pad_matrix, 0, padding_size_X*padding_size_Y*sizeof(float));
-     // fill in values from original matrix    
+     memset(in_pad_matrix, 0, padding_size_X*padding_size_Y*sizeof(float));
+     // fill in values from original matrix
      for (int k = 1; k < padding_size_Y - 1; k++) {
-         memcpy( &pad_matrix[k*padding_size_X + 1] , &in[(k - 1)*padding_size_X], data_size_X*sizeof(float));
+         memcpy(&in_pad_matrix[k*padding_size_X + 1], &in[(k - 1)*padding_size_X], data_size_X*sizeof(float));
      }
 
-     float kernel_vec[4];
+     /* print padded matrix
+     for (int k = 1; k < padding_size_X*padding_size_Y; k ++) {
+        if (pad_matrix[k] == 0) {
+            printf("%d is a %f\n", k, pad_matrix[k] );
+        }
 
-    // main convolution loop
-	for(int y = 0; y < padding_size_Y; y+=4){ // the y coordinate of theoutput location we're focusing on
-		for(int x = 0; x < padding_size_X; x+=4){ // the x coordinate of the output location we're focusing on
-			for(int i = -kern_cent_X; i <= kern_cent_X; i++){ // kernel unflipped x coordinate
-				for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped y coordinate
-					// only do the operation if not out of bounds
-					if(x+i>-1 && x+i<padding_size_X && y+j>-1 && y+j<padding_size_Y){
-						//Note that the kernel is flipped
-						//out[x+y*pading] += kernel[(kern_cent_X-i)+(kern_cent_Y-j)*KERNX] * in[(x+i) + (y+j)*padding_size_X];
-						kernel_vec[0]=kernel[(kern_cent_X - i) + (kern_cent_Y - j)*KERNX];
-                        kernel_vec[1]=kernel[(kern_cent_X - i) + (kern_cent_Y - j)*KERNX];
-                        kernel_vec[2]=kernel[(kern_cent_X - i) + (kern_cent_Y - j)*KERNX];
-                        kernel_vec[3]=kernel[(kern_cent_X - i) + (kern_cent_Y - j)*KERNX];
-                        __m128d kernel_vectorized = _mm_loadu_pd(kernel_vec);
+    } */
+    __m128 kern_vec = _mm_setzero_ps();
+    __m128 in_vals = _mm_setzero_ps();
+    __m128 out_vals = _mm_setzero_ps();
 
-					//	__m128d kernel_vals = _mm_loadu_pd(kernel + ((kern_cent_X - i) + (kern_cent_Y - j)*KERNX));
-						__m128d in_vals = _mm_loadu_pd(pad_matrix + (x + i) + (y + j)*(padding_size_X/4*4));
-						__m128d out_vals = _mm_loadu_pd(out + x + y*(padding_size_X/4*4));
-						__m128d mult_vals = _mm_mul_pd(kernel_vectorized, in_vals);
-						out_vals = _mm_add_pd(out_vals, mult_vals);
-						_mm_storeu_pd((out + x + y*padding_size_X), out_vals);
-						
-					}
-				}
-			}
-		}
-	}
-	return 1;
-}
-
+     // main convolution loop
+     for(int y = 0; y < data_size_Y; y++){ // the x coordinate of the output location we're focusing on
+         for(int x = 0; x < padding_size_X; x++){ // the y coordinate of theoutput location we're focusing on
+             out_vals = _mm_loadu_ps(out + x + y*padding_size_X);
+             for(int i = -kern_cent_X; i <= kern_cent_X; i++){ // kernel unflipped x coordinate
+                 for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped y coordinate
+                     // only do the operation if not out of bounds
+                     if(x + i > -1 && x+i<padding_size_X && y+j>-1 && y + j < padding_size_Y) {
+                         //Note that the kernel is flipped
+                         float kern_val = kernel[(kern_cent_X - i) + (kern_cent_Y - j)*KERNX];
+                         float kern_four_vals[4] = {kern_val, kern_val, kern_val, kern_val};
+                         kern_vec = _mm_loadu_ps(kern_four_vals);
+                         in_vals = _mm_loadu_ps(in_pad_matrix + (x + i) + (y + j)*padding_size_X);
+                         out_vals = _mm_add_ps(out_vals, _mm_mul_ps(kern_vec, in_vals));
+                          _mm_storeu_ps(out + x + y*padding_size_X, out_vals);
+                     }
+                 }
+             }
+            
+         }
+     }
+     return 1;
+ }
