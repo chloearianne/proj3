@@ -29,10 +29,11 @@ int kern_cent_Y = (KERNY - 1)/2;
 // create empty padded matrix
 int padding_size_X = data_size_X + 2;
 int padding_size_Y = data_size_Y + 2;
-float in_pad_matrix[padding_size_X*padding_size_Y];
+int padding_size = padding_size_X * padding_size_Y;
+float in_pad_matrix[padding_size];
 
 // make all values of padded matrix 0
-memset(in_pad_matrix, 0, padding_size_X*padding_size_Y*sizeof(float));
+memset(in_pad_matrix, 0, padding_size*sizeof(float));
 
 // fill in values from original matrix
      for (int k = 1; k < padding_size_Y - 1; k++) {
