@@ -43,27 +43,28 @@ memset(in_pad_matrix, 0, padding_size_X*padding_size_Y*sizeof(float));
 if(data_size_X < 50) {
     printf("this is the original matrix of size %d \n", data_size_X);
     printmatrix(data_size_X, data_size_Y, in);
-    printf("this is the padded matrix \n");
-    printmatrix(data_size_X + 2, data_size_Y + 2, in_pad_matrix);
-}
-
+ //   printf("this is the padded matrix \n");
+   // printmatrix(data_size_X + 2, data_size_Y + 2, in_pad_matrix);
+   // printmatrix(3, 3, kernel);
  /* print padded matrix
  for (int k = 1; k < padding_size_X*padding_size_Y; k ++) {
     if (pad_matrix[k] == 0) {
         printf("%d is a %f\n", k, pad_matrix[k] );
     }
-
+}
 } */
+}
 __m128 kern_vec = _mm_setzero_ps();
 __m128 in_vals = _mm_setzero_ps();
 __m128 out_vals = _mm_setzero_ps();
 
  // main convolution loop
- for(int y = 0; y < data_size_Y; y+=4){ // the x coordinate of the output location we're focusing on
-     for(int x = 0; x < padding_size_X; x+=4){ // the y coordinate of theoutput location we're focusing on
+ for(int y = 1; y < 1+data_size_Y; y+=1){ // the x coordinate of the output location we're focusing on
+    for(int x = 1; x < 1+data_size_X; x+=4){ // the y coordinate of theoutput location we're focusing on
         
     //get out values for x, y coordinates to reuse 
-    out_vals = _mm_loadu_ps(out + x + y*padding_size_X);
+    out_vals = _mm_loadu_ps(out + x + y*data_size_X);
+ //   printf("bob %f \n", *(out + x + y*padding_size_X));
     
          for(int i = -kern_cent_X; i <= kern_cent_X; i++){ // kernel unflipped x coordinate
              for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped y coordinate
@@ -71,31 +72,53 @@ __m128 out_vals = _mm_setzero_ps();
                  if(x + i > -1 && x+i<padding_size_X && y+j>-1 && y + j < padding_size_Y) {
                      //Note that the kernel is flipped
                      
+                     //make copy of kernel locally
+                     
                      //take the value from the kernel and load it into a vector four times: (val, val, val, val)
                      float* kern_val = kernel + (kern_cent_X - i) + (kern_cent_Y - j)*KERNX;
                      kern_vec = _mm_load1_ps(kern_val);
-         
-         //get the next four in values
+		     
+
+		     //get the next four in values
                      in_vals = _mm_loadu_ps(in_pad_matrix + (x + i) + (y + j)*padding_size_X);
          
-         //add the product of kern vals and in vals to whatever was originally in the out vals
+                     //add the product of kern vals and in vals to whatever was originally in the out vals
                      out_vals = _mm_add_ps(out_vals, _mm_mul_ps(kern_vec, in_vals));
-         
-         //store the result back into out
-                     _mm_storeu_ps(out + x + y*padding_size_X, out_vals);
+		     
+		//     printf("bob2 %f \n", *(out + x + y*data_size_X));
+		     if (x > data_size_X - 4) {
+			// printf("in val is %f\n", *(in_pad_matrix + (x + i) + (y + j)*padding_size_X));
+			 
+		     }
+                     //store the result back into out
+                     _mm_storeu_ps(out + (x-1) + (y-1)*data_size_X, out_vals);
                  }
              }
          }
      }
- }
+     
+     for (int x = (1+data_size_X)/4*4; x < data_size_X; x++) {
+	    for(int i = -kern_cent_X; i <= kern_cent_X; i++){ // kernel unflipped x coordinate
+		    for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped y coordinate
+			    // only do the operation if not out of bounds
+				    //Note that the kernel is flipped
+				 //   printf("we're in the second for loop and looking at index %d", x);
+				    out[x+y*data_size_X] += kernel[(kern_cent_X-i)+(kern_cent_Y-j)*KERNX] * in_pad_matrix[(x+i) + (y+j)*padding_size_X];
+			    }
+		    }
+	    }
+     
+
+
+}
+     printmatrix(data_size_X, data_size_Y, out);
  return 1;
 }
 
 
 
 /* QUESTIONS TO ASK:
-* 1. Why is our matrix padding not working? When we run the code, it prints out an extra line of zeroes at the end.
-* 2. is our vectorizaiton correct? I can't tell because since hte padding is off. 
+* 2. vectorization correct? 
 * 3. Is our loop unrolling correct? Do we literally just do everything several times?  If so, how many times is optimal?
 * Right now we have it at four, but that was arbitrary.
 
@@ -145,19 +168,3 @@ __m128 out_vals = _mm_setzero_ps();
                      _mm_storeu_ps(out + x + y*padding_size_X, out_vals);
 
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
